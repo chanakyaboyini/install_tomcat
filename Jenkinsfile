@@ -21,18 +21,18 @@ pipeline {
         ]]) {
           script {
             env.INSTANCE_ID = sh(
-              script: '''
+              script: """
 aws ec2 run-instances \
-  --image-id $AMI_ID \
+  --image-id \$AMI_ID \
   --count 1 \
-  --instance-type $INSTANCE_TYPE \
-  --key-name $KEY_NAME \
-  --security-group-ids $SECURITY_GROUP \
-  --subnet-id $SUBNET_ID \
-  --region $AWS_REGION \
+  --instance-type \$INSTANCE_TYPE \
+  --key-name \$KEY_NAME \
+  --security-group-ids \$SECURITY_GROUP \
+  --subnet-id \$SUBNET_ID \
+  --region \$AWS_REGION \
   --query 'Instances[0].InstanceId' \
   --output text
-''',
+""",
               returnStdout: true
             ).trim()
             echo "Launched EC2 instance: ${env.INSTANCE_ID}"
@@ -50,18 +50,18 @@ aws ec2 run-instances \
           secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
         ]]) {
           script {
-            // wait until the instance is running
-            sh "aws ec2 wait instance-running --instance-ids ${env.INSTANCE_ID} --region $AWS_REGION"
+            // wait until it’s up
+            sh "aws ec2 wait instance-running --instance-ids ${env.INSTANCE_ID} --region \$AWS_REGION"
 
-            // retrieve its public IP
+            // grab the public IP
             env.PUBLIC_IP = sh(
-              script: '''
+              script: """
 aws ec2 describe-instances \
-  --instance-ids $INSTANCE_ID \
-  --region $AWS_REGION \
+  --instance-ids \$INSTANCE_ID \
+  --region \$AWS_REGION \
   --query 'Reservations[0].Instances[0].PublicIpAddress' \
   --output text
-''',
+""",
               returnStdout: true
             ).trim()
             echo "Instance Public IP: ${env.PUBLIC_IP}"
@@ -72,10 +72,13 @@ aws ec2 describe-instances \
 
     stage('Install Tomcat') {
       steps {
-        // Use sshagent if you've stored your EC2 key in Jenkins Credentials
-        sshagent(['jenkins-ec2-ssh-key']) {
+        // bind your SSH key from Jenkins Credentials (kind: SSH Username with private key)
+        withCredentials([sshUserPrivateKey(
+          credentialsId: 'jenkins-ec2-ssh-key',
+          keyFileVariable: 'SSH_KEY'
+        )]) {
           sh """
-ssh -o StrictHostKeyChecking=no ec2-user@${env.PUBLIC_IP} << 'EOF'
+ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ec2-user@${env.PUBLIC_IP} << 'EOF'
   sudo yum update -y
   sudo yum install -y java-1.8.0-openjdk wget
   wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.82/bin/apache-tomcat-9.0.82.tar.gz
@@ -85,14 +88,14 @@ ssh -o StrictHostKeyChecking=no ec2-user@${env.PUBLIC_IP} << 'EOF'
 EOF
 """
         }
-        echo "Tomcat installed on ${env.PUBLIC_IP}:8080"
+        echo "Tomcat installed and started on ${env.PUBLIC_IP}:8080"
       }
     }
   }
 
   post {
     always {
-      echo "Pipeline complete. Don’t forget to terminate ${env.INSTANCE_ID} if it’s only for testing."
+      echo "Pipeline completed. Don’t forget to terminate ${env.INSTANCE_ID} when you’re done."
     }
   }
 }
