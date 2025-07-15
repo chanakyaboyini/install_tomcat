@@ -8,6 +8,13 @@ pipeline {
         KEY_NAME       = 'newjenkinskey'
         SECURITY_GROUP = 'sg-0ece4b3e66a57dd4d'
         SUBNET_ID      = 'subnet-0d08241fda0e0aa1f'
+
+        // Tomcat download parameters
+        CATALINA_VERSION = '9.0.82'
+        CATALINA_MAJOR   = '9'
+        CATALINA_TAR     = "apache-tomcat-${CATALINA_VERSION}.tar.gz"
+        CATALINA_DIR     = "apache-tomcat-${CATALINA_VERSION}"
+        CATALINA_URL     = "https://archive.apache.org/dist/tomcat/tomcat-${CATALINA_MAJOR}/v${CATALINA_VERSION}/bin/${CATALINA_TAR}"
     }
 
     stages {
@@ -83,25 +90,26 @@ aws ec2 describe-instances \
                     script {
                         sh """
 chmod 600 \$SSH_KEY
+
 ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@${env.PUBLIC_IP} << 'EOF'
   sudo yum update -y
-  sudo yum install -y java-1.8.0-openjdk wget
-  wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.82/bin/apache-tomcat-9.0.82.tar.gz
-  tar xzvf apache-tomcat-9.0.82.tar.gz
-  sudo mv apache-tomcat-9.0.82 /opt/tomcat
+  sudo yum install -y java-1.8.0-openjdk wget tar
+  wget -q $CATALINA_URL
+  tar xzf $CATALINA_TAR
+  sudo mv $CATALINA_DIR /opt/tomcat
   sudo /opt/tomcat/bin/startup.sh
 EOF
 """
                     }
                 }
-                echo "Tomcat installed and started on ${env.PUBLIC_IP}:8080"
+                echo "Tomcat ${env.CATALINA_VERSION} installed and started on ${env.PUBLIC_IP}:8080"
             }
         }
     }
 
     post {
         always {
-            echo "Pipeline complete. Terminate ${env.INSTANCE_ID} when you’re done."
+            echo "Pipeline complete. Remember to terminate ${env.INSTANCE_ID} when you’re done."
         }
     }
 }
