@@ -74,7 +74,7 @@ aws ec2 describe-instances \
       steps {
         // bind your SSH key from Jenkins Credentials (kind: SSH Username with private key)
         withCredentials([sshUserPrivateKey(
-          credentialsId: 'jenkins-ec2-ssh-key',
+          credentialsId: 'newjenkinskey',
           keyFileVariable: 'SSH_KEY'
         )]) {
           sh """
