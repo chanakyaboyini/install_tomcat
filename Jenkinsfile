@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION     = 'us-east-1'
-        AMI_ID         = 'ami-0ec18f6103c5e0491'
+        AMI_ID         = 'ami-050fd9796aa387c0d'
         INSTANCE_TYPE  = 't2.micro'
         KEY_NAME       = 'newjenkinskey'
         SECURITY_GROUP = 'sg-0ece4b3e66a57dd4d'
