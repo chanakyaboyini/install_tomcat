@@ -55,7 +55,6 @@ aws ec2 run-instances \
                 ]) {
                     script {
                         sh "aws ec2 wait instance-running --instance-ids ${env.INSTANCE_ID} --region $AWS_REGION"
-
                         env.PUBLIC_IP = sh(
                             script: '''
 aws ec2 describe-instances \
@@ -77,20 +76,23 @@ aws ec2 describe-instances \
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: 'jenkins-ec2-ssh-key',
-                        keyFileVariable: 'SSH_KEY'
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
                     )
                 ]) {
-                    sh '''
-chmod 600 $SSH_KEY
-ssh -o StrictHostKeyChecking=no -i $SSH_KEY ec2-user@${env.PUBLIC_IP} << 'EOF'
+                    script {
+                        sh """
+chmod 600 \$SSH_KEY
+ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@${env.PUBLIC_IP} << 'EOF'
   sudo yum update -y
   sudo yum install -y java-1.8.0-openjdk wget
   wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.82/bin/apache-tomcat-9.0.82.tar.gz
   tar xzvf apache-tomcat-9.0.82.tar.gz
-  sudo mv apache-tomcat-9.0-82 /opt/tomcat
+  sudo mv apache-tomcat-9.0.82 /opt/tomcat
   sudo /opt/tomcat/bin/startup.sh
 EOF
-'''
+"""
+                    }
                 }
                 echo "Tomcat installed and started on ${env.PUBLIC_IP}:8080"
             }
@@ -99,7 +101,7 @@ EOF
 
     post {
         always {
-            echo "Pipeline complete. Remember to terminate ${env.INSTANCE_ID} if it’s only for testing."
+            echo "Pipeline complete. Terminate ${env.INSTANCE_ID} when you’re done."
         }
     }
 }
